@@ -1,5 +1,4 @@
 {
-  "cleanUrls": true,
   "redirects": [
     { "source": "/", "destination": "https://www.livingrestorations.com", "permanent": false }
   ],
