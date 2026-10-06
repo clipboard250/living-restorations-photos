@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Event gallery | Living Restorations</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --terracotta:#a5423b; --teal:#6ca698; --sand:#fbf6ed;
+    --charcoal:#3b3836; --stone:#a69689; --teal-deep:#4f8a7c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--sand);color:var(--charcoal);
+    font-family:'Poppins',system-ui,-apple-system,sans-serif;line-height:1.6;
+    padding-bottom:env(safe-area-inset-bottom,0px);
+  }
+  header{
+    background:var(--teal);color:var(--sand);
+    padding:calc(env(safe-area-inset-top,0px) + 18px) 24px 18px;
+  }
+  .wordmark{font-weight:700;letter-spacing:.18em;font-size:.9rem;margin:0}
+  main{max-width:72rem;margin:0 auto;padding:28px 24px 48px}
+  h1{color:var(--terracotta);font-weight:700;text-transform:uppercase;font-size:clamp(1.4rem,4vw,2rem);margin:0 0 6px;line-height:1.2}
+  .sub{margin:0 0 24px;color:var(--stone)}
+  form{display:flex;gap:10px;flex-wrap:wrap;max-width:28rem}
+  input{flex:1;min-width:12rem;font:inherit;padding:12px 14px;border:2px solid var(--stone);border-radius:10px;background:#fff}
+  button,a.btn{
+    font:inherit;font-weight:500;border:0;border-radius:999px;padding:10px 20px;cursor:pointer;
+    background:var(--terracotta);color:var(--sand);text-decoration:none;display:inline-block;
+  }
+  button.quiet{background:transparent;color:var(--terracotta);padding:4px 0;font-size:.8rem}
+  input:focus-visible,button:focus-visible,a:focus-visible{outline:3px solid var(--teal-deep);outline-offset:3px}
+  .msg{margin-top:12px;color:var(--terracotta);font-weight:500}
+  .count{margin:0 0 18px;font-weight:500}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px}
+  figure{margin:0;background:#fff;border-radius:12px;overflow:hidden;border:1px solid #eadfcf}
+  figure img,figure video{display:block;width:100%;aspect-ratio:1;object-fit:cover;background:#eadfcf}
+  figcaption{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:8px 10px;font-size:.8rem}
+  figcaption a{color:var(--teal-deep);font-weight:500}
+  .who{color:var(--stone);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+</style>
+</head>
+<body>
+<header><p class="wordmark">LIVING RESTORATIONS</p></header>
+<main>
+  <h1 id="title">Event gallery</h1>
+  <p class="sub">Private. Only people with the password can see this page.</p>
+
+  <form id="login">
+    <label for="key" class="sub" style="width:100%;margin:0;color:var(--charcoal);font-weight:500">Password</label>
+    <input type="password" id="key" autocomplete="current-password" required>
+    <button type="submit">Open gallery</button>
+  </form>
+  <p class="msg" id="msg" role="alert"></p>
+
+  <section id="results" hidden>
+    <p class="count" id="count"></p>
+    <div class="grid" id="grid"></div>
+  </section>
+</main>
+
+<script type="module">
+  import { EVENTS } from '/events.js';
+  const slug = location.pathname.split('/').filter(Boolean)[0] || '';
+  const ev = EVENTS[slug];
+  const $ = id => document.getElementById(id);
+  if (ev) { $('title').textContent = ev.name; document.title = `Gallery | ${ev.name}`; }
+
+  let key = sessionStorage.getItem('gk') || '';
+
+  async function load() {
+    $('msg').textContent = '';
+    const r = await fetch(`/api/list?event=${encodeURIComponent(slug)}&key=${encodeURIComponent(key)}`);
+    const data = await r.json().catch(() => ({}));
+    if (!r.ok) { $('msg').textContent = data.error || 'Could not load the gallery.'; sessionStorage.removeItem('gk'); return; }
+    sessionStorage.setItem('gk', key);
+    $('login').hidden = true;
+    $('results').hidden = false;
+    $('count').textContent = data.files.length === 1 ? '1 file shared' : `${data.files.length} files shared`;
+    const grid = $('grid'); grid.innerHTML = '';
+    for (const f of data.files) {
+      const isVideo = /\.(mp4|mov|m4v|webm|3gp)$/i.test(f.path);
+      const fig = document.createElement('figure');
+      const media = document.createElement(isVideo ? 'video' : 'img');
+      media.src = f.url;
+      if (isVideo) { media.controls = true; media.preload = 'metadata'; }
+      else { media.loading = 'lazy'; media.alt = 'Guest photo'; }
+      const who = f.path.split('/').pop().split('-')[0];
+      const cap = document.createElement('figcaption');
+      cap.innerHTML = `<span class="who"></span><a href="${f.downloadUrl}">Download</a><button type="button" class="quiet">Remove</button>`;
+      cap.querySelector('.who').textContent = who;
+      cap.querySelector('button').addEventListener('click', async () => {
+        if (!confirm('Remove this file for good?')) return;
+        const d = await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ key, url: f.url }) });
+        if (d.ok) load(); else $('msg').textContent = 'Could not remove that file.';
+      });
+      fig.append(media, cap);
+      grid.append(fig);
+    }
+  }
+
+  $('login').addEventListener('submit', e => { e.preventDefault(); key = $('key').value; load(); });
+  if (key) load();
+</script>
+</body>
+</html>

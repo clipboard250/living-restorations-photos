@@ -1,0 +1,10 @@
+{
+  "cleanUrls": true,
+  "redirects": [
+    { "source": "/", "destination": "https://www.livingrestorations.com", "permanent": false }
+  ],
+  "rewrites": [
+    { "source": "/:event/gallery", "destination": "/gallery.html" },
+    { "source": "/:event", "destination": "/index.html" }
+  ]
+}
