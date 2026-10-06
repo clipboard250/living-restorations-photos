@@ -158,7 +158,6 @@
       await upload(path, file, {
         access: 'public',
         handleUploadUrl: '/api/upload',
-        onUploadProgress: p => { bar.style.width = p.percentage + '%'; }
       });
       bar.style.width = '100%';
       state.textContent = 'Done';
